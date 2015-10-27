@@ -11,6 +11,22 @@ import SimpleHTTPServer
 DR_RUN_PATH = "./DynamoRIO-Linux-4.1.0-8/bin64/drrun"
 BBCOVERAGE_PATH = "./libbbcoverage.so" # path to dynamoRIO coverage lib
 HOST, PORT = "localhost", 8081 # host and port for simple http server
+TMP = "."
+NUL = "/dev/null"
+
+if sys.platform == 'win32':
+	DR_RUN_PATH = ".\\DynamoRIO\\bin32\\drrun.exe"
+	BBCOVERAGE_PATH = ".\\DynamoRIO\\bbcoverage\\bin\\Release\\bbcoverage.dll" 
+	TMP = "%TEMP%"
+	NUL = "nul"
+
+if not(os.path.isfile(DR_RUN_PATH)):
+	print "File %s not found, check path" % (DR_RUN_PATH)
+	exit()
+	
+if not(os.path.isfile(BBCOVERAGE_PATH)):
+	print "File %s not found, check path" % (BBCOVERAGE_PATH)
+	exit()
 
 def readfiles(directory,ext):
 	'''
@@ -50,9 +66,9 @@ class Minblox:
 		cmd = DR_RUN_PATH
 		if timeout != None:
 			cmd += " -s " + str(timeout)
-		cmd += " -logdir ."
+		cmd += " -logdir " + TMP
 		cmd += " -c " + BBCOVERAGE_PATH
-		cmd += " -- " + app
+		cmd += " -- \"" + app + '"'
 		try:
 			os.mkdir(logs)
 		except:
@@ -70,13 +86,13 @@ class Minblox:
 			if serve:
 				command += "http://"+HOST+":"+str(PORT) + "/"
 			command += sample
-			print "[+] Running trace on sample %d out of %d"%(i+1,len(samples))
+			print "[+] Running trace on sample %s %d out of %d" % (sample, i+1,len(samples))
 			i+=1
-			os.system(command + " > /dev/null") #don't want app stdout 
+			os.system(command + " > " + NUL) #don't want app stdout 
 			f = open("bbcov.log","a")
 			f.write(sample) # record the sample path so we can retrive it later
 			f.close()
-			log_path = logs + "/" + sample.replace("/","_").strip(".")
+			log_path = logs + "/" + sample.replace("/","_").replace("\\", "_").replace(":","_").strip(".")
 			shutil.move("bbcov.log",log_path) # save coverage log for analysis
 		if server != None:
 			server.shutdown()
@@ -126,7 +142,7 @@ class Minblox:
 		for log in min_files: 
 			log_file = open(log,"r")
 			file_path = log_file.readlines()[-1].strip()
-			shutil.copy(file_path,output + "/" + "".join(file_path.split("/")[1:]))
+			shutil.copy(file_path, output + "/" + os.path.basename(file_path))
 		print "Done!"
 		
 
@@ -186,7 +202,7 @@ if options.cover:
 		sys.exit(0)
 logs = []
 if options.minimize and (options.logs == None or options.output == None):
-	print "\n\y-m requres both logs directory (-l) and output directory (-o)"
+	print "\n\y-m requires both logs directory (-l) and output directory (-o)"
 else:
 	print "RUNNING MINIMIZATION"
 	logs = readfiles(options.logs,None)
