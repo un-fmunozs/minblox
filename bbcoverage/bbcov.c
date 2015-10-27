@@ -38,7 +38,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb,
 {
     char bbTag[20];
     dr_snprintf(bbTag , sizeof(bbTag),PFX"\n",tag); 
-	dr_write_file(fpCoverageLog,bbTag,sizeof(bbTag)-1);
+	dr_write_file(fpCoverageLog,bbTag,strlen(bbTag));
     return DR_EMIT_DEFAULT;
 }
 
