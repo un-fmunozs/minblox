@@ -37,8 +37,17 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb,
                   bool for_trace, bool translating)
 {
     char bbTag[20];
-    dr_snprintf(bbTag , sizeof(bbTag),PFX"\n",tag); 
-	dr_write_file(fpCoverageLog,bbTag,strlen(bbTag));
+    uint num_instructions = 0;
+    instr_t *instr, *where = NULL;
+    // count the number of instructions in this block 
+    for (instr = instrlist_first_app(bb); instr != NULL; instr = instr_get_next_app(instr)) {
+		//if (instr_is_cbr(instr)) {
+			num_instructions++;
+		//}
+    }
+	if (num_instructions >= 3) {
+		dr_snprintf(bbTag , sizeof(bbTag),PFX"\t%i\r\n",tag,num_instructions); 
+		dr_write_file(fpCoverageLog,bbTag,strlen(bbTag));
+	}
     return DR_EMIT_DEFAULT;
 }
-
