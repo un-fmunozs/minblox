@@ -7,7 +7,9 @@ import socket
 import threading
 import SocketServer
 import SimpleHTTPServer
+import hashlib
 
+ITERATIONSAMPLE = 10
 DR_RUN_PATH = "./DynamoRIO-Linux-4.1.0-8/bin64/drrun"
 BBCOVERAGE_PATH = "./libbbcoverage.so" # path to dynamoRIO coverage lib
 HOST, PORT = "localhost", 8081 # host and port for simple http server
@@ -82,18 +84,26 @@ class Minblox:
 			server_thread.daemon = True
 			server_thread.start()				
 		for sample in samples: # instrument application for each sample
-			command = cmd + " "
-			if serve:
-				command += "http://"+HOST+":"+str(PORT) + "/"
-			command += sample
 			print "[+] Running trace on sample %s %d out of %d" % (sample, i+1,len(samples))
 			i+=1
-			os.system(command + " > " + NUL) #don't want app stdout 
-			f = open("bbcov.log","a")
-			f.write(sample) # record the sample path so we can retrive it later
-			f.close()
-			log_path = logs + "/" + sample.replace("/","_").replace("\\", "_").replace(":","_").strip(".")
-			shutil.move("bbcov.log",log_path) # save coverage log for analysis
+			for w in range(0, ITERATIONSAMPLE):
+				command = cmd + " "
+				if serve:
+					command += "http://"+HOST+":"+str(PORT) + "/"
+				command += sample
+				print command
+				os.system(command + " + NUL) #don't want app stdout 
+				f = open("bbcov.log","a")
+				f.write(sample) # record the sample path so we can retrive it later
+				f.close()
+				sampledir = sample.replace("/","_").replace("\\", "_").replace(":","_").strip(".")
+				try:
+					print sampledir
+					os.mkdir(logs + "/" + sampledir)
+				except:
+					pass
+				log_path = logs + "/" +  sampledir + "/" + str(w) 
+				shutil.move("bbcov.log",log_path) # save coverage log for analysis
 		if server != None:
 			server.shutdown()
 	
@@ -144,8 +154,39 @@ class Minblox:
 			file_path = log_file.readlines()[-1].strip()
 			shutil.copy(file_path, output + "/" + os.path.basename(file_path))
 		print "Done!"
-		
+	
+	def clean_logs(self, logsdir):
+		try:
+			shutil.rmtree(os.path.join(".", "clean" + logsdir))
+		except:
+			pass
+		try:
+			os.mkdir(os.path.join(".", "clean" + logsdir))
+		except:
+			print "err creating"
+			
+		for i in readdirs(logsdir):
+			tmpdir = os.path.join(logsdir, i)
+			max = 0
+			max_hash = ""			
+			unique = {}
+			for filename in os.listdir(tmpdir):
+				ffilename = os.path.join(tmpdir, filename)
+				if os.path.isfile(ffilename):
+					x = open(ffilename, "rb")
+					filehash = hashlib.md5(x.read()).hexdigest()
+					if filehash not in unique: 
+						unique[filehash] = {"count":1, "sample":ffilename}
+					else:
+						unique[filehash]["count"] = unique[filehash]["count"] + 1
+						if max < unique[filehash]["count"]:
+							max = unique[filehash]["count"]
+							max_hash = filehash
+			shutil.copy(unique[max_hash]["sample"], os.path.join(".", "clean" + logsdir, max_hash))
 
+def readdirs(a_dir):
+	return [name for name in os.listdir(a_dir) if os.path.isdir(os.path.join(a_dir, name))]
+	
 print "\n\tMinblox - sample set minimizer\n"
 
 
@@ -205,7 +246,8 @@ if options.minimize and (options.logs == None or options.output == None):
 	print "\n\y-m requires both logs directory (-l) and output directory (-o)"
 else:
 	print "RUNNING MINIMIZATION"
-	logs = readfiles(options.logs,None)
+	minblox.clean_logs(options.logs)
+	logs = readfiles(os.path.join(".", "clean" + options.logs), None)
 	minblox.minimize(logs,options.output)
 	sys.exit(0)
 
