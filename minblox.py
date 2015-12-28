@@ -83,8 +83,6 @@ class Minblox:
 			server_thread = threading.Thread(target=server.serve_forever)
 			server_thread.daemon = True
 			server_thread.start()				
-		os.system(cmd + " > " + NUL)
-		shutil.move("bbcov.log", logs + "/base")			
 		for sample in samples: # instrument application for each sample
 			print "[+] Running trace on sample %s %d out of %d" % (sample, i+1,len(samples))
 			i+=1
@@ -94,7 +92,7 @@ class Minblox:
 					command += "http://"+HOST+":"+str(PORT) + "/"
 				command += sample
 				print command
-				os.system(command + " > " + NUL) #don't want app stdout 
+				os.system(command + " + NUL) #don't want app stdout 
 				f = open("bbcov.log","a")
 				f.write(sample) # record the sample path so we can retrive it later
 				f.close()
