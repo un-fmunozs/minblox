@@ -15,8 +15,8 @@ TMP = "."
 NUL = "/dev/null"
 
 if sys.platform == 'win32':
-	DR_RUN_PATH = ".\\DynamoRIO\\bin32\\drrun.exe"
-	BBCOVERAGE_PATH = ".\\DynamoRIO\\bbcoverage\\bin\\Release\\bbcoverage.dll" 
+	DR_RUN_PATH = "..\\DynamoRIO\\bin32\\drrun.exe"
+	BBCOVERAGE_PATH = "..\\DynamoRIO\\bbcoverage\\bin\\Release\\bbcoverage.dll" 
 	TMP = "%TEMP%"
 	NUL = "nul"
 
@@ -53,7 +53,7 @@ class Minblox:
 	'''
 	Small class containing coverage and minimization methods.
 	'''
-	def cover(self,app,samples,serve,timeout,logs):
+	def cover(self,app,samples,serve,timeout,logs, force):
 		'''
 		Method runs the target application trough the sample set with
 		under DynamoRIO basic block coverage tool. Coverage logs are 
@@ -80,8 +80,15 @@ class Minblox:
 			server = ThreadedTCPServer((HOST, PORT), Handler)
 			server_thread = threading.Thread(target=server.serve_forever)
 			server_thread.daemon = True
-			server_thread.start()				
+			server_thread.start()		
+		if force or not os.path.isfile(logs + "/base"):
+			os.system(cmd + " > " + NUL)
+			shutil.move("bbcov.log", logs + "/base")	
 		for sample in samples: # instrument application for each sample
+			log_path = logs + "/" + sample.replace("/","_").replace("\\", "_").replace(":","_").strip(".")
+			if not force and os.path.isfile(log_path):
+				print "   ... sample %s already tested, skipping" % sample
+				continue
 			command = cmd + " "
 			if serve:
 				command += "http://"+HOST+":"+str(PORT) + "/"
@@ -92,7 +99,7 @@ class Minblox:
 			f = open("bbcov.log","a")
 			f.write(sample) # record the sample path so we can retrive it later
 			f.close()
-			log_path = logs + "/" + sample.replace("/","_").replace("\\", "_").replace(":","_").strip(".")
+
 			shutil.move("bbcov.log",log_path) # save coverage log for analysis
 		if server != None:
 			server.shutdown()
@@ -175,6 +182,7 @@ parser.add_option("-o","--output",action="store",
 									help="Minimal sample set destination directory.")
 parser.add_option("-c", "--cover", action="store_true", dest="cover")
 parser.add_option("-m", "--minimize", action="store_true", dest="minimize")
+parser.add_option("-f", "--force", action="store_true", dest="force", help="Overwrite output even if it exists")
 
 
 
@@ -198,7 +206,7 @@ if options.cover:
 	else:
 		samples = readfiles(options.samples,options.extension)
 		print "[+] Running basic block tracing on %d files"%(len(samples))
-		minblox.cover(options.application, samples, options.http , options.timeout,options.logs)
+		minblox.cover(options.application, samples, options.http , options.timeout,options.logs, options.force)
 		sys.exit(0)
 logs = []
 if options.minimize and (options.logs == None or options.output == None):
