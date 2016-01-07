@@ -7,6 +7,7 @@ import socket
 import threading
 import SocketServer
 import SimpleHTTPServer
+import win32gui, win32con, win32api
 
 DR_RUN_PATH = "./DynamoRIO-Linux-4.1.0-8/bin64/drrun"
 BBCOVERAGE_PATH = "./libbbcoverage.so" # path to dynamoRIO coverage lib
@@ -27,6 +28,20 @@ if not(os.path.isfile(DR_RUN_PATH)):
 if not(os.path.isfile(BBCOVERAGE_PATH)):
 	print "File %s not found, check path" % (BBCOVERAGE_PATH)
 	exit()
+	
+def close_window(windowClass, waitTime=15):
+	if waitTime > 0:
+		threading.Timer(waitTime, close_window, [windowClass, 0]).start()
+		return
+	hwndqt = win32gui.FindWindow(windowClass, None)
+	win32gui.PostMessage(hwndqt,win32con.WM_CLOSE,0,0)	
+		
+def kill_process(processName, waitTime=15):
+	if waitTime > 0:
+		threading.Timer(waitTime, kill_process, [processName, 0]).start()
+		return
+	# command injection? we are running untrusted exe file so idgaf
+	os.system("taskkill /F /IM "+processName) 
 
 def readfiles(directory,ext):
 	'''
